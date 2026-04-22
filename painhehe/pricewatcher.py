@@ -10,9 +10,13 @@ import subprocess
 import urllib.parse as urlparse
 from datetime import datetime
 from pathlib import Path
+from tkinter import filedialog
+from PIL import Image, ImageTk
+from playwright.sync_api import sync_playwright
+from plyer import notification
+
 
 try:
-    from playwright.sync_api import sync_playwright
     PLAYWRIGHT_OK = True
 except ImportError:
     PLAYWRIGHT_OK = False
@@ -54,15 +58,15 @@ def _sizes(base_key):
 PALETTES = {
     # ── Dark (Классический темный в стиле VS Code / Discord) ──────────────────
     "Dark": {
-        "window_bg": "#202020", "header_bg": "#181818", "tab_bg": "#252526",
-        "card_bg": "#2D2D30", "card_bg2": "#333337", "input_bg": "#1E1E1E",
+        "window_bg": "#1E1E1E", "header_bg": "#252526", "tab_bg": "#1E1E1E",
+        "card_bg": "#2D2D30", "card_bg2": "#252526", "input_bg": "#3C3C3C",
         "log_bg": "#1E1E1E", "status_bg": "#007ACC",
         
-        "accent": "#007ACC", "accent_hover": "#0098FF",
+        "accent": "#007ACC", "accent_hover": "#1E8AD4",
         
-        "btn_add_bg": "#3E3E42", "btn_add_hover": "#505050",
-        "btn_start_bg": "#2EA043", "btn_start_hover": "#3FB950",
-        "btn_stop_bg": "#DA3633", "btn_stop_hover": "#F85149",
+        "btn_add_bg": "#0E639C", "btn_add_hover": "#1177BB",
+        "btn_start_bg": "#0E8C3A", "btn_start_hover": "#10A345",
+        "btn_stop_bg": "#C72E0F", "btn_stop_hover": "#E03413",
         "btn_excel_bg": "#1D6E43", "btn_excel_hover": "#238636",
         "btn_paste_bg": "#3E3E42", "btn_paste_hover": "#505050",
         
@@ -75,72 +79,73 @@ PALETTES = {
         "entry_text": "#F1F1F1",
     },
     
-    # ── Light (Классический светлый в стиле Windows 11) ───────────────────────
+    # ── Light (Мягкая светлая тема с теплыми оттенками) ───────────────────────
     "Light": {
-        "window_bg": "#000000", "header_bg": "#EAEAEA", "tab_bg": "#F3F3F3",
-        "card_bg": "#FFFFFF", "card_bg2": "#FAFAFA", "input_bg": "#FFFFFF",
-        "log_bg": "#FFFFFF", "status_bg": "#005FB8",
+        "window_bg": "#FAFAFA", "header_bg": "#F5F5F5", "tab_bg": "#FAFAFA",
+        "card_bg": "#FFFFFF", "card_bg2": "#F8F9FA", "input_bg": "#FFFFFF",
+        "log_bg": "#FFFFFF", "status_bg": "#4A90E2",
         
-        "accent": "#005FB8", "accent_hover": "#0078D4",
+        "accent": "#4A90E2", "accent_hover": "#357ABD",
         
-        "btn_add_bg": "#E0E0E0", "btn_add_hover": "#D1D1D1",
-        "btn_start_bg": "#107C10", "btn_start_hover": "#0B5A0B",
-        "btn_stop_bg": "#D13438", "btn_stop_hover": "#A4262C",
-        "btn_excel_bg": "#107C10", "btn_excel_hover": "#0B5A0B",
-        "btn_paste_bg": "#E0E0E0", "btn_paste_hover": "#D1D1D1",
+        "btn_add_bg": "#5B9BD5", "btn_add_hover": "#4A8BC9",
+        "btn_start_bg": "#6BBA6E", "btn_start_hover": "#5AA85E",
+        "btn_stop_bg": "#E57373", "btn_stop_hover": "#D32F2F",
+        "btn_excel_bg": "#6BBA6E", "btn_excel_hover": "#5AA85E",
+        "btn_paste_bg": "#E0E0E0", "btn_paste_hover": "#D0D0D0",
         
-        "label_main": "#000000", "label_sub": "#FFFFFF", "label_dim": "#8A8A8A",
-        "log_text": "#242424", "status_ok": "#107C10",
-        "queue_url": "#005FB8", "queue_price": "#107C10",
-        "section_label": "#005FB8",
-        "tab_selector": "#005FB8", "tab_text": "#F4F4F4",
-        "entry_text": "#242424",
+        "label_main": "#2C3E50", "label_sub": "#546E7A", "label_dim": "#90A4AE",
+        "log_text": "#37474F", "status_ok": "#43A047",
+        "queue_url": "#1E88E5", "queue_price": "#43A047",
+        "section_label": "#4A90E2",
+        
+        "tab_selector": "#4A90E2", "tab_text": "#FFFFFF",
+        "entry_text": "#2C3E50",
     },
     
-    # ── High Contrast (Истинная высокая контрастность для Windows) ────────────
+    # ── High Contrast (Настоящая высокая контрастность) ───────────────────────
     "HighContrast": {
-        "window_bg": "#000000", "header_bg": "#000000", "tab_bg": "#000000",
-        "card_bg": "#000000", "card_bg2": "#000000", "input_bg": "#000000",
+        "window_bg": "#000000", "header_bg": "#0A0A0A", "tab_bg": "#000000",
+        "card_bg": "#0A0A0A", "card_bg2": "#050505", "input_bg": "#000000",
         "log_bg": "#000000", "status_bg": "#000000",
         
-        "accent": "#FFFF00", "accent_hover": "#FFFFFF", 
+        "accent": "#FFD700", "accent_hover": "#FFC107", 
         
-        "btn_add_bg": "#000000", "btn_add_hover": "#FFFF00",
-        "btn_start_bg": "#00FF00", "btn_start_hover": "#FFFFFF",
-        "btn_stop_bg": "#FF0000", "btn_stop_hover": "#FFFFFF",
-        "btn_excel_bg": "#00FFFF", "btn_excel_hover": "#FFFFFF",
-        "btn_paste_bg": "#000000", "btn_paste_hover": "#FFFF00",
+        "btn_add_bg": "#000000", "btn_add_hover": "#FFD700",
+        "btn_start_bg": "#00FF00", "btn_start_hover": "#00CC00",
+        "btn_stop_bg": "#FF4444", "btn_stop_hover": "#CC0000",
+        "btn_excel_bg": "#00BFFF", "btn_excel_hover": "#0099CC",
+        "btn_paste_bg": "#000000", "btn_paste_hover": "#FFD700",
         
-        "label_main": "#FFFFFF", "label_sub": "#FFFF00", "label_dim": "#00FFFF",
+        "label_main": "#FFFFFF", "label_sub": "#FFD700", "label_dim": "#00BFFF",
         "log_text": "#00FF00", "status_ok": "#00FF00",
-        "queue_url": "#00FFFF", "queue_price": "#FFFF00",
-        "section_label": "#FFFF00",
+        "queue_url": "#00BFFF", "queue_price": "#FFD700",
+        "section_label": "#FFD700",
         
-        "tab_selector": "#FFFF00", "tab_text": "#FFFFFF",
+        "tab_selector": "#FFD700", "tab_text": "#000000",
         "entry_text": "#FFFFFF"
     },
     
-    # ── Colorblind (Нейтральный фон, безопасные сине-оранжевые индикаторы) ────
+    # ── Colorblind (Оптимизировано для дальтоников) ───────────────────────────
     "Colorblind": {
-        "window_bg": "#252525", "header_bg": "#1E1E1E", "tab_bg": "#252525",
-        "card_bg": "#303030", "card_bg2": "#383838", "input_bg": "#1E1E1E",
-        "log_bg": "#1E1E1E", "status_bg": "#252525",
+        "window_bg": "#F5F5F5", "header_bg": "#EEEEEE", "tab_bg": "#F5F5F5",
+        "card_bg": "#FFFFFF", "card_bg2": "#FAFAFA", "input_bg": "#FFFFFF",
+        "log_bg": "#FFFFFF", "status_bg": "#000000",
         
-        "accent": "#56B4E9", "accent_hover": "#80C6ED",
+        "accent": "#005A9C", "accent_hover": "#004578",
         
-        "btn_add_bg": "#4A4A4A", "btn_add_hover": "#5A5A5A",
-        "btn_start_bg": "#0072B2", "btn_start_hover": "#005E94",
-        "btn_stop_bg": "#D55E00", "btn_stop_hover": "#B34F00",
-        "btn_excel_bg": "#F0E442", "btn_excel_hover": "#D8CD3A",
-        "btn_paste_bg": "#4A4A4A", "btn_paste_hover": "#5A5A5A",
+        "btn_add_bg": "#005A9C", "btn_add_hover": "#004578",
+        "btn_start_bg": "#008837", "btn_start_hover": "#006B2C",
+        "btn_stop_bg": "#CC3311", "btn_stop_hover": "#A62A0E",
+        "btn_excel_bg": "#E69F00", "btn_excel_hover": "#D18F00",
+        "btn_paste_bg": "#D9D9D9", "btn_paste_hover": "#C0C0C0",
         
-        "label_main": "#FFFFFF", "label_sub": "#DDDDDD", "label_dim": "#AAAAAA",
-        "log_text": "#DDDDDD", "status_ok": "#56B4E9",
-        "queue_url": "#56B4E9", "queue_price": "#F0E442",
-        "section_label": "#56B4E9",
+        "label_main": "#1A1A1A", "label_sub": "#4D4D4D", "label_dim": "#737373",
+        "log_text": "#1A1A1A", "status_ok": "#008837",
+        "queue_url": "#005A9C", "queue_price": "#E69F00",
+        "section_label": "#005A9C",
         
-        "tab_selector": "#56B4E9", "tab_text": "#DDDDDD",
-        "entry_text": "#FFFFFF",
+        "tab_selector": "#005A9C", "tab_text": "#FFFFFF",
+        "entry_text": "#1A1A1A",
     },
 }
 
@@ -156,7 +161,6 @@ def send_os_notification(title, message):
     try:
         if system == "Windows":
             try:
-                from plyer import notification
                 notification.notify(title=title, message=message, app_name="PriceWatcher", timeout=8)
             except Exception:
                 ps_cmd = (
@@ -360,7 +364,8 @@ class PriceWatcherApp(ctk.CTk):
         """Переключает палитру доступности."""
         self._base_theme = theme_key
         self._current_theme = theme_key
-        ctk.set_appearance_mode("Dark" if theme_key in ("Dark", "HighContrast", "Colorblind") else "Light")
+        # Исправленная строка:
+        ctk.set_appearance_mode("Dark" if theme_key in ("Dark", "HighContrast") else "Light")
         self._apply_theme()
         self._rebuild_tabs()
 
@@ -394,6 +399,7 @@ class PriceWatcherApp(ctk.CTk):
         self._register(header, "header_bg")
 
         ctk.CTkLabel(header, text="⚡", font=("Segoe UI Emoji", self._fs("title"))).grid(
+
             row=0, column=0, rowspan=2, padx=18, pady=10)
 
         title_lbl = ctk.CTkLabel(header, text="PriceWatcher",
@@ -750,7 +756,6 @@ class PriceWatcherApp(ctk.CTk):
                           ).pack(pady=12, padx=20, fill="x")
 
     def _choose_bg(self):
-        from tkinter import filedialog
         path = filedialog.askopenfilename(
             title="Выберите изображение фона",
             filetypes=[("Images", "*.png *.jpg *.jpeg *.gif *.bmp"), ("All", "*.*")])
@@ -758,7 +763,6 @@ class PriceWatcherApp(ctk.CTk):
 
     def _set_bg(self, path):
         try:
-            from PIL import Image, ImageTk
             img = Image.open(path).resize((self.winfo_width() or 660, self.winfo_height() or 840))
             self._bg_image = ImageTk.PhotoImage(img)
             bg_label = tk.Label(self, image=self._bg_image)
